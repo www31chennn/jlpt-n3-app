@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type UserData = { userName: string; months: number; currentDay: number; fileId?: string; quizResults?: unknown[]; completedDays?: number[]; };
@@ -21,11 +21,11 @@ type QuizData = {
   reviewWords: string[];
 };
 
-export default function QuizPage() {
+function QuizInner() {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [quizData, setQuizData] = useState<QuizData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [showResult, setShowResult] = useState(false);
@@ -392,6 +392,14 @@ function ReviewScreen({ userData, quizData, answers, score, total, percentage, o
         </button>
       </div>
     </div>
+  );
+}
+
+export default function Quiz() {
+  return (
+    <Suspense fallback={null}>
+      <QuizInner />
+    </Suspense>
   );
 }
 
