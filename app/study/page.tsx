@@ -204,15 +204,15 @@ function RubyWord({ kanji, hiragana, fontSize = 52 }: { kanji: string; hiragana:
   }
   const parts = parseRuby(display, hiragana);
   return (
-    <span style={{ fontFamily: "'Noto Serif JP', serif", fontSize, fontWeight: 900, color: "#1a1209", lineHeight: 1.8, display: "inline-flex", alignItems: "flex-end" }}>
+    <span style={{ fontFamily: "'Noto Serif JP', serif", fontSize, fontWeight: 900, color: "#1a1209", lineHeight: 2 }}>
       {parts.map((p, i) =>
         p.ruby ? (
-          <ruby key={i} style={{ rubyAlign: "center" } as React.CSSProperties}>
+          <ruby key={i} style={{ rubyAlign: "center", verticalAlign: "bottom" } as React.CSSProperties}>
             {p.text}
             <rt style={{ fontSize: fontSize * 0.28, color: "#c0392b", fontWeight: 400, fontFamily: "'Noto Sans JP', sans-serif" }}>{p.ruby}</rt>
           </ruby>
         ) : (
-          <span key={i}>{p.text}</span>
+          <span key={i} style={{ verticalAlign: "bottom", display: "inline-block" }}>{p.text}</span>
         )
       )}
     </span>
