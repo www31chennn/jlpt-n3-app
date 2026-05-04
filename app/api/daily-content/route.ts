@@ -47,13 +47,13 @@ export async function POST(req: NextRequest) {
   "words": [
     {
       "kanji": "漢字寫法",
-      "hiragana": "完整平假名",
+      "hiragana": "完整平假名（整個單字）",
       "romaji": "羅馬拼音",
       "meaning": "中文意思",
       "partOfSpeech": "詞性",
       "sentences": [
-        {"jp": "例句1", "furigana": "完整平假名版本", "zh": "中文翻譯"},
-        {"jp": "例句2", "furigana": "完整平假名版本", "zh": "中文翻譯"}
+        {"jp": "例句1（純文字，不含標記）", "ruby": "<ruby>挨拶<rt>あいさつ</rt></ruby>する例子", "zh": "中文翻譯"},
+        {"jp": "例句2（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"}
       ],
       "mnemonics": "記憶訣竅（中文）"
     }
@@ -63,19 +63,21 @@ export async function POST(req: NextRequest) {
       "pattern": "文法句型",
       "explanation": "中文說明（100字以內）",
       "examples": [
-        {"jp": "例句", "furigana": "完整平假名", "zh": "中文翻譯"},
-        {"jp": "例句", "furigana": "完整平假名", "zh": "中文翻譯"},
-        {"jp": "例句", "furigana": "完整平假名", "zh": "中文翻譯"}
+        {"jp": "例句（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"},
+        {"jp": "例句（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"},
+        {"jp": "例句（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"}
       ]
     }
   ],
   "dailyChallenge": "今日挑戰（中文說明任務）"
 }
 
-規則：
-- words 陣列必須包含以上所有單字，順序一致
-- 3個文法句型要不同
-- furigana 必須是對應句子的完整平假名`;
+Ruby格式規則（非常重要）：
+- ruby欄位必須對每個漢字標注振り仮名，格式：<ruby>漢字<rt>よみかた</rt></ruby>
+- 平假名、片假名、標點符號直接寫，不需要ruby標記
+- 例：「毎朝、隣の人と挨拶をします。」→「<ruby>毎朝<rt>まいあさ</rt></ruby>、<ruby>隣<rt>となり</rt></ruby>の<ruby>人<rt>ひと</rt></ruby>と<ruby>挨拶<rt>あいさつ</rt></ruby>をします。」
+- words陣列必須包含以上所有單字，順序一致
+- 3個文法句型要不同`;
 
     let result;
     for (let attempt = 1; attempt <= 5; attempt++) {

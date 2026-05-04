@@ -22,14 +22,14 @@ type Word = {
   romaji: string;
   meaning: string;
   partOfSpeech: string;
-  sentences: { jp: string; furigana: string; zh: string }[];
+  sentences: { jp: string; furigana: string; ruby?: string; zh: string }[];
   mnemonics: string;
 };
 
 type GrammarPoint = {
   pattern: string;
   explanation: string;
-  examples: { jp: string; furigana: string; zh: string }[];
+  examples: { jp: string; furigana: string; ruby?: string; zh: string }[];
 };
 
 type DailyContent = {
@@ -216,6 +216,19 @@ function RubyWord({ kanji, hiragana, fontSize = 52 }: { kanji: string; hiragana:
         )
       )}
     </span>
+  );
+}
+
+// 直接渲染 AI 生成的 ruby HTML
+function RubyHtml({ html, fontSize = 16 }: { html: string; fontSize?: number }) {
+  if (!html) return null;
+  return (
+    <span
+      style={{ fontSize, lineHeight: 2, fontFamily: "'Noto Sans JP', sans-serif" }}
+      dangerouslySetInnerHTML={{ __html: html
+        .replace(/<rt>/g, `<rt style="color:#c0392b;font-size:${Math.round(fontSize * 0.65)}px;font-family:'Noto Sans JP',sans-serif;">`)
+      }}
+    />
   );
 }
 
@@ -519,7 +532,10 @@ function StudyInner() {
                 <div key={si} style={{ padding: "12px 16px", background: si % 2 === 0 ? "rgba(192,57,43,0.03)" : "white", borderRadius: 2, marginBottom: 8, borderLeft: "2px solid rgba(192,57,43,0.25)" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 6 }}>
                     <div style={{ flex: 1 }}>
-                      <RubySentence jp={s.jp} furigana={s.furigana} fontSize={16} />
+                      {(s as {ruby?: string}).ruby
+                        ? <RubyHtml html={(s as {ruby?: string}).ruby!} fontSize={16} />
+                        : <RubySentence jp={s.jp} furigana={s.furigana} fontSize={16} />
+                      }
                     </div>
                     <SpeakButton text={s.jp} size={15} />
                   </div>
@@ -564,7 +580,10 @@ function StudyInner() {
                 <div key={i} style={{ padding: "10px 14px", background: "#f8f4ed", borderRadius: 2, marginBottom: 6 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 3 }}>
                     <div style={{ flex: 1 }}>
-                      <RubySentence jp={ex.jp} furigana={ex.furigana} fontSize={14} />
+                      {(ex as {ruby?: string}).ruby
+                        ? <RubyHtml html={(ex as {ruby?: string}).ruby!} fontSize={14} />
+                        : <RubySentence jp={ex.jp} furigana={ex.furigana} fontSize={14} />
+                      }
                     </div>
                     <SpeakButton text={ex.jp} size={13} />
                   </div>
