@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 type UserData = {
   userName: string;
@@ -285,13 +286,13 @@ function DailyChallenge({ challenge, day, theme }: { challenge: string; day: num
   );
 }
 
-export default function StudyPage() {
+function StudyInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isPreview = searchParams.get("preview") === "1";
   const [userData, setUserData] = useState<UserData | null>(null);
   const [content, setContent] = useState<DailyContent | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeWord, setActiveWord] = useState(0);
   const [completedWords, setCompletedWords] = useState<Set<number>>(new Set());
   const [dayComplete, setDayComplete] = useState(false);
@@ -614,6 +615,14 @@ export default function StudyPage() {
         ruby { ruby-align: center; }
       `}</style>
     </div>
+  );
+}
+
+export default function StudyPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudyInner />
+    </Suspense>
   );
 }
 
