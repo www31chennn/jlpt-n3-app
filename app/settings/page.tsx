@@ -36,6 +36,25 @@ export default function SettingsPage() {
               <button onClick={() => signOut({ callbackUrl: "/login" })} style={{ padding: "10px 24px", border: "1px solid rgba(192,57,43,0.3)", borderRadius: 2, background: "transparent", color: "#c0392b", fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
                 登出 Google 帳號
               </button>
+
+              <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid rgba(26,18,9,0.08)" }}>
+                <div style={{ fontSize: 13, color: "rgba(26,18,9,0.5)", marginBottom: 12 }}>
+                  清除學習快取後，下次開啟各天學習內容時會重新從 AI 生成（進度不受影響）。
+                </div>
+                <button onClick={() => {
+                  const keys = [];
+                  for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith("jlpt_content_day_") || key.startsWith("jlpt_done_day_"))) {
+                      keys.push(key);
+                    }
+                  }
+                  keys.forEach(k => localStorage.removeItem(k));
+                  alert(`已清除 ${keys.length} 筆學習快取`);
+                }} style={{ padding: "10px 24px", border: "1px solid rgba(26,18,9,0.2)", borderRadius: 2, background: "transparent", color: "rgba(26,18,9,0.6)", fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
+                  清除學習快取
+                </button>
+              </div>
             </div>
           </div>
         ) : (

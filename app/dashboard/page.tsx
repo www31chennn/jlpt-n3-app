@@ -127,8 +127,8 @@ export default function Dashboard() {
         <button onClick={() => router.push("/")} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#1a1209" }}>←</button>
         <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 16, fontWeight: 700, color: "#1a1209" }}>學習儀表板</div>
         {session ? (
-          <button onClick={() => signOut({ callbackUrl: "/login" })} style={{ fontSize: 12, color: "rgba(26,18,9,0.45)", background: "none", border: "1px solid rgba(26,18,9,0.12)", borderRadius: 2, padding: "5px 10px", cursor: "pointer", fontFamily: "inherit" }}>
-            登出
+          <button onClick={() => router.push("/settings")} style={{ fontSize: 12, color: "rgba(26,18,9,0.45)", background: "none", border: "1px solid rgba(26,18,9,0.12)", borderRadius: 2, padding: "5px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+            設定
           </button>
         ) : (
           <div style={{ width: 32 }} />
