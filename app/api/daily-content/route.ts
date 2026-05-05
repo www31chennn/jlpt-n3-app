@@ -80,16 +80,16 @@ Ruby格式規則（非常重要）：
 - 3個文法句型要不同`;
 
     let result;
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         result = await model.generateContent(prompt);
         break;
       } catch (err: unknown) {
         const msg = String(err);
         const isRetryable = msg.includes("503") || msg.includes("429");
-        if (isRetryable && attempt < 5) {
+        if (isRetryable && attempt < 2) {
           console.log(`503 重試第 ${attempt} 次...`);
-          await new Promise(r => setTimeout(r, attempt * 3000));
+          await new Promise(r => setTimeout(r, 2000));
         } else {
           throw err;
         }

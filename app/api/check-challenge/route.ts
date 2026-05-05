@@ -28,15 +28,15 @@ export async function POST(req: NextRequest) {
 - 有小錯誤但意思正確可以給 correct: true，但要在 comment 指出`;
 
     let result;
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         result = await model.generateContent(prompt);
         break;
       } catch (err: unknown) {
         const msg = String(err);
         const isRetryable = msg.includes("503") || msg.includes("429");
-        if (isRetryable && attempt < 5) {
-          await new Promise(r => setTimeout(r, attempt * 3000));
+        if (isRetryable && attempt < 2) {
+          await new Promise(r => setTimeout(r, 2000));
         } else {
           throw err;
         }
