@@ -22,6 +22,29 @@ const GRAMMAR_GUIDE = [
   { desc: "N3難階文法：〜に違いない、〜にしては、〜ことになっている、〜にもかかわらず、〜ばかりか、〜上で、〜一方で、〜末に、〜を通じて、〜に伴って" },
 ];
 
+async function callAI(prompt: string): Promise<string> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (err: unknown) {
+      const msg = String(err);
+      const isRetryable = msg.includes("503") || msg.includes("429");
+      if (isRetryable && attempt < 2) {
+        await new Promise(r => setTimeout(r, 2000));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error("All retries failed");
+}
+
+function parseJSON(text: string) {
+  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  return JSON.parse(cleaned);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { day, months, userName, words: providedWords } = await req.json();
@@ -29,94 +52,89 @@ export async function POST(req: NextRequest) {
     const theme = WEEKLY_THEMES[weekIndex];
     const levelIdx = day <= 30 ? 0 : day <= 60 ? 1 : 2;
     const grammarGuide = GRAMMAR_GUIDE[levelIdx];
-
-    // 使用前端傳來的單字清單，或 fallback 到空陣列
     const wordList: string[] = providedWords || [];
 
-    const prompt = `你是JLPT N3專業教師，請為學習者${userName}第${day}天（主題：${theme}）生成學習內容。
+    // 第一次呼叫：生成單字
+    const wordsPrompt = `你是JLPT N3專業教師。請為學習者${userName}第${day}天（主題：${theme}）生成8個單字的學習內容。
 
 今天要學習的8個單字是：${wordList.length > 0 ? wordList.join("、") : "請自行選擇8個N3單字"}
 
-請為每個單字生成詳細資料，並生成3個文法重點。
+只回傳JSON陣列：
+[
+  {
+    "kanji": "漢字寫法",
+    "hiragana": "完整平假名",
+    "romaji": "羅馬拼音",
+    "meaning": "中文意思",
+    "partOfSpeech": "詞性",
+    "sentences": [
+      {"jp": "例句1純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式例句", "zh": "中文翻譯"},
+      {"jp": "例句2純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式例句", "zh": "中文翻譯"}
+    ],
+    "mnemonics": "記憶訣竅（中文）"
+  }
+]
+
+Ruby格式規則：
+- ruby欄位對每個漢字標注振り仮名：<ruby>漢字<rt>よみかた</rt></ruby>
+- 平假名、片假名、標點直接寫
+- 例：「毎朝挨拶をします。」→「<ruby>毎朝<rt>まいあさ</rt></ruby><ruby>挨拶<rt>あいさつ</rt></ruby>をします。」
+- words陣列必須包含以上所有8個單字，順序一致`;
+
+    // 第二次呼叫：生成文法和今日挑戰
+    const grammarPrompt = `你是JLPT N3專業教師。請為第${day}天（主題：${theme}）生成3個文法重點和今日挑戰。
+
 文法範圍：${grammarGuide.desc}
+今天學習的單字：${wordList.slice(0, 4).join("、")}
 
 只回傳JSON：
 {
-  "day": ${day},
-  "theme": "${theme}",
-  "words": [
-    {
-      "kanji": "漢字寫法",
-      "hiragana": "完整平假名（整個單字）",
-      "romaji": "羅馬拼音",
-      "meaning": "中文意思",
-      "partOfSpeech": "詞性",
-      "sentences": [
-        {"jp": "例句1（純文字，不含標記）", "ruby": "<ruby>挨拶<rt>あいさつ</rt></ruby>する例子", "zh": "中文翻譯"},
-        {"jp": "例句2（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"}
-      ],
-      "mnemonics": "記憶訣竅（中文）"
-    }
-  ],
   "grammarPoints": [
     {
       "pattern": "文法句型",
-      "explanation": "中文說明（100字以內）",
+      "explanation": "中文說明（80字以內）",
       "examples": [
-        {"jp": "例句（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"},
-        {"jp": "例句（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"},
-        {"jp": "例句（純文字）", "ruby": "ruby格式例句", "zh": "中文翻譯"}
+        {"jp": "例句純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式", "zh": "中文翻譯"},
+        {"jp": "例句純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式", "zh": "中文翻譯"},
+        {"jp": "例句純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式", "zh": "中文翻譯"}
       ]
     }
   ],
-  "dailyChallenge": "今日挑戰（中文說明任務）"
+  "dailyChallenge": "今日挑戰（中文說明，使用今天學過的單字造句）"
 }
 
-Ruby格式規則（非常重要）：
-- ruby欄位必須對每個漢字標注振り仮名，格式：<ruby>漢字<rt>よみかた</rt></ruby>
-- 平假名、片假名、標點符號直接寫，不需要ruby標記
-- 例：「毎朝、隣の人と挨拶をします。」→「<ruby>毎朝<rt>まいあさ</rt></ruby>、<ruby>隣<rt>となり</rt></ruby>の<ruby>人<rt>ひと</rt></ruby>と<ruby>挨拶<rt>あいさつ</rt></ruby>をします。」
-- words陣列必須包含以上所有單字，順序一致
-- 3個文法句型要不同`;
+- 3個文法句型必須不同
+- Ruby格式同上`;
 
-    let result;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        result = await model.generateContent(prompt);
-        break;
-      } catch (err: unknown) {
-        const msg = String(err);
-        const isRetryable = msg.includes("503") || msg.includes("429");
-        if (isRetryable && attempt < 2) {
-          console.log(`503 重試第 ${attempt} 次...`);
-          await new Promise(r => setTimeout(r, 2000));
-        } else {
-          throw err;
-        }
-      }
-    }
-    if (!result) throw new Error("All retries failed");
+    // 並行呼叫兩個 AI（節省時間）
+    const [wordsText, grammarText] = await Promise.all([
+      callAI(wordsPrompt),
+      callAI(grammarPrompt),
+    ]);
 
-    const rawText = result.response.text();
-    let content;
+    let words, grammarPoints, dailyChallenge;
+
     try {
-      const cleaned = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const parsed = JSON.parse(cleaned);
-      if (parsed.grammarPoint && !parsed.grammarPoints) parsed.grammarPoints = [parsed.grammarPoint];
-      content = parsed;
+      words = parseJSON(wordsText);
     } catch {
-      content = {
-        day, theme,
-        words: wordList.map(w => ({
-          kanji: w, hiragana: w, romaji: w, meaning: "（生成失敗，請重試）",
-          partOfSpeech: "不明", sentences: [], mnemonics: ""
-        })),
-        grammarPoints: [],
-        dailyChallenge: "請重新載入頁面。"
-      };
+      words = wordList.map(w => ({
+        kanji: w, hiragana: w, romaji: w, meaning: "（生成失敗，請重試）",
+        partOfSpeech: "不明", sentences: [], mnemonics: ""
+      }));
     }
 
+    try {
+      const grammarData = parseJSON(grammarText);
+      grammarPoints = grammarData.grammarPoints;
+      dailyChallenge = grammarData.dailyChallenge;
+    } catch {
+      grammarPoints = [];
+      dailyChallenge = "請重新載入頁面。";
+    }
+
+    const content = { day, theme, words, grammarPoints, dailyChallenge };
     return NextResponse.json({ content });
+
   } catch (error) {
     console.error("Error generating daily content:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
