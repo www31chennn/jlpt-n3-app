@@ -31,10 +31,8 @@ async function callAI(prompt: string): Promise<string> {
       const msg = String(err);
       const isRetryable = msg.includes("503") || msg.includes("429");
       if (isRetryable && attempt < 2) {
-        await new Promise(r => setTimeout(r, 2000));
-      } else {
-        throw err;
-      }
+        await new Promise(r => setTimeout(r, 3000));
+      } else throw err;
     }
   }
   throw new Error("All retries failed");
@@ -47,17 +45,19 @@ function parseJSON(text: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { day, months, userName, words: providedWords } = await req.json();
+    const { day, months, userName, words: providedWords, part } = await req.json();
     const weekIndex = Math.floor((day - 1) / 7) % WEEKLY_THEMES.length;
     const theme = WEEKLY_THEMES[weekIndex];
     const levelIdx = day <= 30 ? 0 : day <= 60 ? 1 : 2;
     const grammarGuide = GRAMMAR_GUIDE[levelIdx];
     const wordList: string[] = providedWords || [];
 
-    // 第一次呼叫：生成單字
-    const wordsPrompt = `你是JLPT N3專業教師。請為學習者${userName}第${day}天（主題：${theme}）生成8個單字的學習內容。
+    // part=1: 只生成單字，part=2: 只生成文法+挑戰，未指定: 嘗試一次生成全部（本機用）
+    if (part === 1) {
+      // 第一部分：單字
+      const prompt = `你是JLPT N3專業教師。請為學習者${userName}第${day}天（主題：${theme}）生成8個單字的學習內容。
 
-今天要學習的8個單字是：${wordList.length > 0 ? wordList.join("、") : "請自行選擇8個N3單字"}
+今天要學習的8個單字：${wordList.length > 0 ? wordList.join("、") : "請自行選擇8個N3單字"}
 
 只回傳JSON陣列：
 [
@@ -78,11 +78,23 @@ export async function POST(req: NextRequest) {
 Ruby格式規則：
 - ruby欄位對每個漢字標注振り仮名：<ruby>漢字<rt>よみかた</rt></ruby>
 - 平假名、片假名、標點直接寫
-- 例：「毎朝挨拶をします。」→「<ruby>毎朝<rt>まいあさ</rt></ruby><ruby>挨拶<rt>あいさつ</rt></ruby>をします。」
 - words陣列必須包含以上所有8個單字，順序一致`;
 
-    // 第二次呼叫：生成文法和今日挑戰
-    const grammarPrompt = `你是JLPT N3專業教師。請為第${day}天（主題：${theme}）生成3個文法重點和今日挑戰。
+      const text = await callAI(prompt);
+      let words;
+      try {
+        words = parseJSON(text);
+      } catch {
+        words = wordList.map(w => ({
+          kanji: w, hiragana: w, romaji: w, meaning: "（生成失敗，請重試）",
+          partOfSpeech: "不明", sentences: [], mnemonics: ""
+        }));
+      }
+      return NextResponse.json({ words, day, theme });
+
+    } else if (part === 2) {
+      // 第二部分：文法 + 今日挑戰
+      const prompt = `你是JLPT N3專業教師。請為第${day}天（主題：${theme}）生成3個文法重點和今日挑戰。
 
 文法範圍：${grammarGuide.desc}
 今天學習的單字：${wordList.slice(0, 4).join("、")}
@@ -102,38 +114,36 @@ Ruby格式規則：
   ],
   "dailyChallenge": "今日挑戰（中文說明，使用今天學過的單字造句）"
 }
+- 3個文法句型必須不同`;
 
-- 3個文法句型必須不同
-- Ruby格式同上`;
+      const text = await callAI(prompt);
+      let grammarPoints, dailyChallenge;
+      try {
+        const data = parseJSON(text);
+        grammarPoints = data.grammarPoints;
+        dailyChallenge = data.dailyChallenge;
+      } catch {
+        grammarPoints = [];
+        dailyChallenge = "請重新載入頁面。";
+      }
+      return NextResponse.json({ grammarPoints, dailyChallenge });
 
-    // 並行呼叫兩個 AI（節省時間）
-    const [wordsText, grammarText] = await Promise.all([
-      callAI(wordsPrompt),
-      callAI(grammarPrompt),
-    ]);
+    } else {
+      // 舊版相容：一次生成全部（本機開發用）
+      const prompt = `你是JLPT N3專業教師，請為學習者${userName}第${day}天（主題：${theme}）生成學習內容。
+今天要學習的8個單字：${wordList.length > 0 ? wordList.join("、") : "請自行選擇8個N3單字"}
+文法範圍：${grammarGuide.desc}
+只回傳JSON：{"day":${day},"theme":"${theme}","words":[{"kanji":"","hiragana":"","romaji":"","meaning":"","partOfSpeech":"","sentences":[{"jp":"","ruby":"","zh":""}],"mnemonics":""}],"grammarPoints":[{"pattern":"","explanation":"","examples":[{"jp":"","ruby":"","zh":""}]}],"dailyChallenge":""}`;
 
-    let words, grammarPoints, dailyChallenge;
-
-    try {
-      words = parseJSON(wordsText);
-    } catch {
-      words = wordList.map(w => ({
-        kanji: w, hiragana: w, romaji: w, meaning: "（生成失敗，請重試）",
-        partOfSpeech: "不明", sentences: [], mnemonics: ""
-      }));
+      const text = await callAI(prompt);
+      let content;
+      try {
+        content = parseJSON(text);
+      } catch {
+        content = { day, theme, words: [], grammarPoints: [], dailyChallenge: "請重新載入。" };
+      }
+      return NextResponse.json({ content });
     }
-
-    try {
-      const grammarData = parseJSON(grammarText);
-      grammarPoints = grammarData.grammarPoints;
-      dailyChallenge = grammarData.dailyChallenge;
-    } catch {
-      grammarPoints = [];
-      dailyChallenge = "請重新載入頁面。";
-    }
-
-    const content = { day, theme, words, grammarPoints, dailyChallenge };
-    return NextResponse.json({ content });
 
   } catch (error) {
     console.error("Error generating daily content:", error);

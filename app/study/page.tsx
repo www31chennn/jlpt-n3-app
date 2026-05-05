@@ -353,29 +353,53 @@ function StudyInner() {
         }
       } catch {}
 
-      const res = await fetch("/api/daily-content", {
+      // 第一次呼叫：生成單字
+      const res1 = await fetch("/api/daily-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ day, months: user.months, userName: user.userName, words }),
+        body: JSON.stringify({ day, months: user.months, userName: user.userName, words, part: 1 }),
       });
-      const data = await res.json();
-      if (data.content) {
-        setContent(data.content);
-        localStorage.setItem(cacheKey, JSON.stringify(data.content));
-        // 存到 Drive 合併檔案（背景執行）
-        const activeCourse = localStorage.getItem("jlpt_active_course");
-        const driveContentFile = activeCourse ? `course_${activeCourse}_content.json` : `content.json`;
-        // 先讀現有內容，再合併新的天
-        fetch(`/api/drive?file=${encodeURIComponent(driveContentFile)}`)
-          .then(r => r.json())
-          .then(({ data: existing }) => {
-            const updated = { ...(existing || {}), [String(day)]: data.content };
-            return fetch(`/api/drive?file=${encodeURIComponent(driveContentFile)}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ data: updated }),
-            });
-          }).catch(() => {});
+      const data1 = await res1.json();
+
+      if (data1.words) {
+        const partialContent = {
+          day, theme: data1.theme,
+          words: data1.words,
+          grammarPoints: [],
+          dailyChallenge: "文法載入中..."
+        };
+        setContent(partialContent as DailyContent);
+        setLoading(false);
+
+        // 第二次呼叫：背景生成文法
+        fetch("/api/daily-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ day, months: user.months, userName: user.userName, words, part: 2 }),
+        }).then(r => r.json()).then(data2 => {
+          if (data2.grammarPoints) {
+            const fullContent = {
+              ...partialContent,
+              grammarPoints: data2.grammarPoints,
+              dailyChallenge: data2.dailyChallenge || "",
+            };
+            setContent(fullContent as DailyContent);
+            localStorage.setItem(cacheKey, JSON.stringify(fullContent));
+            const activeCourse2 = localStorage.getItem("jlpt_active_course");
+            const driveFile2 = activeCourse2 ? `course_${activeCourse2}_content.json` : `content.json`;
+            fetch(`/api/drive?file=${encodeURIComponent(driveFile2)}`)
+              .then(r => r.json())
+              .then(({ data: existing }) => {
+                const updated = { ...(existing || {}), [String(day)]: fullContent };
+                return fetch(`/api/drive?file=${encodeURIComponent(driveFile2)}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ data: updated }),
+                });
+              }).catch(() => {});
+          }
+        }).catch(() => {});
+        return;
       }
     } catch (e) {
       console.error(e);
