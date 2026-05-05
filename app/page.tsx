@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 const MONTH_OPTIONS = [3, 6, 9, 12];
-const INITIAL_DAYS = 21;
+const INITIAL_DAYS = 7;
 
 type CourseData = {
   userName: string;
@@ -195,7 +195,7 @@ export default function Home() {
   };
 
   async function backgroundGenerate(name: string, months: number, startDay: number, totalDays: number, allWords: string[], wordsByDay: Record<number, string[]>) {
-    const BATCH = 14;
+    const BATCH = 7;
     let currentStart = startDay;
     let currentAllWords = [...allWords];
     let currentWordsByDay = { ...wordsByDay };
