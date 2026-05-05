@@ -241,6 +241,13 @@ export default function Home() {
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "60px 24px" }}>
 
         {/* Header */}
+        {/* 右上角設定按鈕 */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+          <button onClick={() => router.push("/settings")} style={{ fontSize: 12, color: "rgba(26,18,9,0.45)", background: "none", border: "1px solid rgba(26,18,9,0.12)", borderRadius: 2, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+            ⚙ 設定
+          </button>
+        </div>
+
         <div style={{ textAlign: "center", marginBottom: 52 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
             <div style={{ width: 60, height: 60, border: "3px solid #c0392b", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Noto Serif JP', serif", fontSize: 22, fontWeight: 900, color: "#c0392b", transform: "rotate(-8deg)", opacity: 0.85 }}>N3</div>
