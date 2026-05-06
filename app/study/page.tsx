@@ -310,6 +310,7 @@ function StudyInner() {
   const [completedWords, setCompletedWords] = useState<Set<number>>(new Set());
   const [dayComplete, setDayComplete] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [previewDay, setPreviewDay] = useState<number | null>(null);
 
   const loadContent = useCallback(async (user: UserData, targetDay?: number) => {
@@ -373,6 +374,7 @@ function StudyInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ day, months: user.months, userName: user.userName, words, part: 1 }),
       });
+      if (!res1.ok) throw new Error(`daily-content part=1 failed: ${res1.status}`);
       const data1 = await res1.json();
 
       if (data1.words) {
@@ -417,6 +419,7 @@ function StudyInner() {
       }
     } catch (e) {
       console.error(e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -507,6 +510,24 @@ function StudyInner() {
   const isQuizDue = userData && userData.currentDay > 1 && (userData.currentDay - 1) % 7 === 0;
 
   if (loading) return <LoadingScreen day={previewDay ?? userData?.currentDay} />;
+  if (loadError) return (
+    <div style={{ minHeight: "100vh", background: "#f8f4ed", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, fontFamily: "'Noto Sans JP', sans-serif", padding: 24 }}>
+      <div style={{ fontSize: 32 }}>⚠️</div>
+      <div style={{ fontSize: 16, fontWeight: 600, color: "#1a1209" }}>內容生成逾時</div>
+      <div style={{ fontSize: 13, color: "rgba(26,18,9,0.5)", textAlign: "center" }}>AI 伺服器回應較慢，請稍後再試</div>
+      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+        <button onClick={() => { setLoadError(false); setLoading(true); loadContent(userData!); }} style={{ padding: "11px 24px", background: "#c0392b", color: "white", border: "none", borderRadius: 2, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
+          重新生成
+        </button>
+        <button onClick={() => window.location.reload()} style={{ padding: "11px 24px", background: "transparent", color: "#1a1209", border: "1px solid rgba(26,18,9,0.2)", borderRadius: 2, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
+          重新整理
+        </button>
+      </div>
+      <button onClick={() => router.push("/dashboard")} style={{ marginTop: 4, fontSize: 13, color: "rgba(26,18,9,0.4)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+        ← 返回課表
+      </button>
+    </div>
+  );
   if (!content || !userData) return null;
 
   const word = content.words[activeWord];

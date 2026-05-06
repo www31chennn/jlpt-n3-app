@@ -130,12 +130,24 @@ Ruby格式規則：
       const text = await callAI(prompt);
       let words;
       try {
-        words = parseJSON(text);
-      } catch {
-        words = wordList.map(w => ({
-          kanji: w, hiragana: w, romaji: w, meaning: "（生成失敗，請重試）",
-          partOfSpeech: "不明", sentences: [], mnemonics: ""
-        }));
+        const parsed = parseJSON(text);
+        // 驗證格式正確
+        if (!Array.isArray(parsed)) {
+          throw new Error(`Expected array, got ${typeof parsed}`);
+        }
+        if (parsed.length === 0) {
+          throw new Error("Empty array returned");
+        }
+        if (!parsed[0].kanji || !parsed[0].meaning) {
+          console.error(`[daily-content] Invalid word format:`, JSON.stringify(parsed[0]).substring(0, 200));
+          throw new Error("Invalid word format");
+        }
+        words = parsed;
+        console.log(`[daily-content] part=1 success: ${words.length} words`);
+      } catch (e) {
+        console.error(`[daily-content] part=1 failed:`, String(e));
+        console.error(`[daily-content] raw (500 chars):`, text.substring(0, 500));
+        return NextResponse.json({ error: "generation_failed" }, { status: 422 });
       }
       return NextResponse.json({ words, day, theme });
 
