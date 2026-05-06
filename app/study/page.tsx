@@ -319,19 +319,27 @@ function StudyInner() {
       const cacheKey = `jlpt_content_day_${day}`;
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
-        setContent(JSON.parse(cached));
-        // 恢復已讀單字記錄
-        const doneKey = `jlpt_done_day_${day}`;
-        const done = localStorage.getItem(doneKey);
-        if (done) {
-          const doneSet = new Set<number>(JSON.parse(done));
-          setCompletedWords(doneSet);
-          if (JSON.parse(cached).words && doneSet.size === JSON.parse(cached).words.length) {
-            setDayComplete(true);
+        const cachedData = JSON.parse(cached);
+        // 檢查快取是否完整
+        const hasValidCache = cachedData.words?.length > 0 &&
+          cachedData.words[0]?.meaning !== "（生成失敗，請重試）" &&
+          cachedData.words[0]?.sentences?.length > 0;
+        if (hasValidCache) {
+          setContent(cachedData);
+          const doneKey = `jlpt_done_day_${day}`;
+          const done = localStorage.getItem(doneKey);
+          if (done) {
+            const doneSet = new Set<number>(JSON.parse(done));
+            setCompletedWords(doneSet);
+            if (cachedData.words && doneSet.size === cachedData.words.length) {
+              setDayComplete(true);
+            }
           }
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-        return;
+        // 快取不完整，清除後重新生成
+        localStorage.removeItem(cacheKey);
       }
       const activeCourse = localStorage.getItem("jlpt_active_course");
       const wordListKey = activeCourse ? `jlpt_word_list_${activeCourse}` : "jlpt_word_list";
@@ -346,10 +354,16 @@ function StudyInner() {
         const { data: allContent } = await driveRes.json();
         if (allContent?.[String(day)]?.words) {
           const dayContent = allContent[String(day)];
-          setContent(dayContent);
-          localStorage.setItem(cacheKey, JSON.stringify(dayContent));
-          setLoading(false);
-          return;
+          // 檢查單字是否完整（避免讀到生成失敗的快取）
+          const hasValidWords = dayContent.words?.length > 0 &&
+            dayContent.words[0]?.meaning !== "（生成失敗，請重試）" &&
+            dayContent.words[0]?.sentences?.length > 0;
+          if (hasValidWords) {
+            setContent(dayContent);
+            localStorage.setItem(cacheKey, JSON.stringify(dayContent));
+            setLoading(false);
+            return;
+          }
         }
       } catch {}
 
@@ -492,7 +506,7 @@ function StudyInner() {
   const progress = userData ? (userData.currentDay / totalDays) * 100 : 0;
   const isQuizDue = userData && userData.currentDay > 1 && (userData.currentDay - 1) % 7 === 0;
 
-  if (loading) return <LoadingScreen />;
+  if (loading) return <LoadingScreen day={previewDay ?? userData?.currentDay} />;
   if (!content || !userData) return null;
 
   const word = content.words[activeWord];
@@ -669,11 +683,11 @@ export default function StudyPage() {
   );
 }
 
-function LoadingScreen() {
+function LoadingScreen({ day }: { day?: number }) {
   return (
     <div style={{ minHeight: "100vh", background: "#f8f4ed", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans JP', sans-serif", gap: 16 }}>
       <div style={{ fontFamily: "'Noto Serif JP', serif", fontSize: 32, color: "#c0392b", animation: "pulse 1.5s ease infinite" }}>日</div>
-      <div style={{ fontSize: 14, color: "rgba(26,18,9,0.45)" }}>正在生成今日學習內容...</div>
+      <div style={{ fontSize: 14, color: "rgba(26,18,9,0.45)" }}>正在生成第 {day ?? "?"} 天學習內容...</div>
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
     </div>
   );
