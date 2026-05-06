@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     const theme = WEEKLY_THEMES[weekIndex];
 
     const wordList: string[] = providedWords || [];
+    console.log(`[daily-content] day=${day} part=${part} words=${wordList.length}個:`, wordList.join("、") || "（無）");
 
     // part=1: 只生成單字，part=2: 只生成文法+挑戰，未指定: 嘗試一次生成全部（本機用）
     if (part === 1) {
