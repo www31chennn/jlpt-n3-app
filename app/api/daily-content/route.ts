@@ -16,11 +16,58 @@ const WEEKLY_THEMES = [
   "N3綜合複習一", "N3綜合複習二", "N3綜合複習三",
 ];
 
-const GRAMMAR_GUIDE = [
-  { desc: "N3核心文法：〜てしまう、〜ておく、〜てある、〜ようになる、〜ばかり、〜だけでなく、〜によって、〜として、〜ために、〜ていく／てくる" },
-  { desc: "N3中階文法：〜わけだ／わけではない、〜はずだ、〜べきだ、〜ものだ、〜ところだ、〜さえ〜ば、〜としたら、〜かどうか、〜に対して、〜に関して" },
-  { desc: "N3難階文法：〜に違いない、〜にしては、〜ことになっている、〜にもかかわらず、〜ばかりか、〜上で、〜一方で、〜末に、〜を通じて、〜に伴って" },
+// 每7天一組，38組共266個文法分配（避免重複）
+const GRAMMAR_POOL = [
+  // 第1週
+  ["〜てしまう", "〜ておく", "〜ようになる"],
+  ["〜てある", "〜ていく", "〜てくる"],
+  ["〜だけでなく", "〜ばかり", "〜ために"],
+  ["〜によって", "〜として", "〜に対して"],
+  ["〜に関して", "〜について", "〜をめぐって"],
+  ["〜はずだ", "〜べきだ", "〜にちがいない"],
+  ["〜ものだ", "〜ことだ", "〜わけだ"],
+  // 第2週
+  ["〜わけではない", "〜ところだ", "〜ばかりだ"],
+  ["〜さえ〜ば", "〜としたら", "〜とすれば"],
+  ["〜かどうか", "〜かと思ったら", "〜かねない"],
+  ["〜にしては", "〜にしても", "〜にせよ"],
+  ["〜ことになっている", "〜ことになる", "〜ことにする"],
+  ["〜にもかかわらず", "〜にもかかわらず", "〜くせに"],
+  ["〜ばかりか", "〜のみならず", "〜だけでなく"],
+  // 第3週
+  ["〜上で", "〜上に", "〜うちに"],
+  ["〜一方で", "〜一方だ", "〜反面"],
+  ["〜末に", "〜あげく", "〜結果"],
+  ["〜を通じて", "〜を通して", "〜によって"],
+  ["〜に伴って", "〜に従って", "〜につれて"],
+  ["〜次第", "〜次第で", "〜しだいだ"],
+  ["〜ものの", "〜ながらも", "〜とはいえ"],
+  // 第4週
+  ["〜に加えて", "〜に加え", "〜とともに"],
+  ["〜からといって", "〜からには", "〜からこそ"],
+  ["〜どころか", "〜どころではない", "〜はもちろん"],
+  ["〜に比べて", "〜に対して", "〜と違って"],
+  ["〜ようでは", "〜ようでは", "〜ようでは"],
+  ["〜ようとする", "〜まいとする", "〜とする"],
+  ["〜において", "〜における", "〜にわたって"],
+  // 第5週以上複習與進階
+  ["〜をはじめ", "〜をはじめとして", "〜など"],
+  ["〜に際して", "〜にあたって", "〜にあたり"],
+  ["〜に応じて", "〜に応じた", "〜によって"],
+  ["〜を契機に", "〜をきっかけに", "〜をもとに"],
+  ["〜ずにはいられない", "〜ないではいられない", "〜てたまらない"],
+  ["〜たとたん", "〜なり", "〜かと思ったら"],
+  ["〜といえば", "〜といったら", "〜ときたら"],
+  ["〜てはじめて", "〜てこそ", "〜からこそ"],
+  ["〜ないことには", "〜なくして", "〜なければならない"],
+  ["〜ほど〜ない", "〜ほど", "〜くらい／ほど"],
 ];
+
+function getGrammarForDay(day: number): string[] {
+  // 每天輪用不同的3個文法
+  const poolIndex = Math.floor((day - 1) / 1) % GRAMMAR_POOL.length;
+  return GRAMMAR_POOL[poolIndex];
+}
 
 async function callAI(prompt: string): Promise<string> {
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -48,8 +95,7 @@ export async function POST(req: NextRequest) {
     const { day, months, userName, words: providedWords, part } = await req.json();
     const weekIndex = Math.floor((day - 1) / 7) % WEEKLY_THEMES.length;
     const theme = WEEKLY_THEMES[weekIndex];
-    const levelIdx = day <= 30 ? 0 : day <= 60 ? 1 : 2;
-    const grammarGuide = GRAMMAR_GUIDE[levelIdx];
+
     const wordList: string[] = providedWords || [];
 
     // part=1: 只生成單字，part=2: 只生成文法+挑戰，未指定: 嘗試一次生成全部（本機用）
@@ -94,27 +140,35 @@ Ruby格式規則：
 
     } else if (part === 2) {
       // 第二部分：文法 + 今日挑戰
-      const prompt = `你是JLPT N3專業教師。請為第${day}天（主題：${theme}）生成3個文法重點和今日挑戰。
+      const grammarList = getGrammarForDay(day);
+      const prompt = `你是JLPT N3專業教師。請為第${day}天（主題：${theme}）生成以下3個文法重點和今日挑戰。
 
-文法範圍：${grammarGuide.desc}
-今天學習的單字：${wordList.slice(0, 4).join("、")}
+今天必須教的3個文法（嚴格按照此清單，不可替換）：
+1. ${grammarList[0]}
+2. ${grammarList[1]}
+3. ${grammarList[2]}
+
+今天學習的單字：${wordList.join("、")}
 
 只回傳JSON：
 {
   "grammarPoints": [
     {
-      "pattern": "文法句型",
-      "explanation": "中文說明（80字以內）",
+      "pattern": "文法句型（必須從以上3個中選）",
+      "explanation": "中文說明（80字以內，說明用法和語感）",
       "examples": [
-        {"jp": "例句純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式", "zh": "中文翻譯"},
-        {"jp": "例句純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式", "zh": "中文翻譯"},
-        {"jp": "例句純文字", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式", "zh": "中文翻譯"}
+        {"jp": "使用今天單字的例句（純文字）", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式例句", "zh": "中文翻譯"},
+        {"jp": "使用今天單字的例句（純文字）", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式例句", "zh": "中文翻譯"},
+        {"jp": "使用今天單字的例句（純文字）", "ruby": "<ruby>漢字<rt>よみ</rt></ruby>格式例句", "zh": "中文翻譯"}
       ]
     }
   ],
-  "dailyChallenge": "今日挑戰（中文說明，使用今天學過的單字造句）"
+  "dailyChallenge": "今日挑戰：要求學習者用今天學過的單字和文法各造一句"
 }
-- 3個文法句型必須不同`;
+重要規定：
+- 3個文法必須完全按照清單，不可用其他文法替換
+- 每個文法的例句必須包含今天學習的單字
+- Ruby格式：對每個漢字標注振り仮名`;
 
       const text = await callAI(prompt);
       let grammarPoints, dailyChallenge;
@@ -132,7 +186,7 @@ Ruby格式規則：
       // 舊版相容：一次生成全部（本機開發用）
       const prompt = `你是JLPT N3專業教師，請為學習者${userName}第${day}天（主題：${theme}）生成學習內容。
 今天要學習的8個單字：${wordList.length > 0 ? wordList.join("、") : "請自行選擇8個N3單字"}
-文法範圍：${grammarGuide.desc}
+文法範圍：N3常用文法
 只回傳JSON：{"day":${day},"theme":"${theme}","words":[{"kanji":"","hiragana":"","romaji":"","meaning":"","partOfSpeech":"","sentences":[{"jp":"","ruby":"","zh":""}],"mnemonics":""}],"grammarPoints":[{"pattern":"","explanation":"","examples":[{"jp":"","ruby":"","zh":""}]}],"dailyChallenge":""}`;
 
       const text = await callAI(prompt);
